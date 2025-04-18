@@ -10,7 +10,7 @@ const port = process.env.PORT || 5000;
 
 // Middleware
 const corsOptions = {
-  origin: ['http://localhost:5173','https://lbbd-b10af.web.app','https://lbbd-b10af.firebaseapp.com'],
+  origin: ['http://localhost:5173','https://first-dp-house.web.app','https://first-dp-house.firebaseapp.com'],
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -60,7 +60,8 @@ const sendEmail = (emailAddress, emailData) => {
 
 
 // MongoDB URI setup
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.lbrnp.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ce1uiqf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -257,26 +258,25 @@ async function run() {
     app.post('/deposits', verifyToken, async (req, res) => {
       try {
         const depositData = req.body;
-
+    
         // 🇧🇩 বাংলাদেশ সময় সেট
         const nowUTC = new Date();
-        const bdTime = new Date(nowUTC.getTime() + (6 * 60 * 60 * 1000));
-
+        const bdTime = new Date(nowUTC.getTime() + (6 * 60 * 60 * 1000)); // UTC থেকে ৬ ঘণ্টা যোগ করে বাংলাদেশ সময় পাওয়া যাবে।
+    
         // ডিপোজিট ডেটা সেভ করার জন্য তৈরি
         const deposits = {
           ...depositData,
-          createdAt: bdTime
+          createdAt: bdTime.toISOString() // এখানে bdTime কে ISO স্ট্রিং ফরম্যাটে কনভার্ট করা হয়েছে
         };
-
+    
         // MongoDB তে ডাটা ইন্সার্ট
         const result = await depositCollection.insertOne(deposits);
-
+    
         // যদি সফলভাবে ডিপোজিট যুক্ত হয়
         if (result?.insertedId) {
-
           // ডিপোজিট থেকে প্রয়োজনীয় তথ্য বের করা
           const { customer, amount, trxId, status, createdAt, numberName } = deposits;
-
+    
           // ✅ কাস্টমারের ইমেইল পাঠানো
           await sendEmail(customer.email, {
             subject: "✅ আপনার ডিপোজিট রিকোয়েস্ট সফলভাবে গ্রহণ করা হয়েছে!",
@@ -288,12 +288,11 @@ async function run() {
               <p><strong>অনুরোধের তারিখ:</strong> ${new Date(createdAt).toLocaleString("bn-BD", { timeZone: "Asia/Dhaka" })}</p>
               <br>
               <p>আপনার সহযোগিতার জন্য ধন্যবাদ।</p>
-              <p><strong>LBBD</strong></p>
+              <p><strong>𝐃𝐞𝐩𝐨𝐬𝐢𝐭 & 𝐰𝐢𝐭𝐡𝐝𝐫𝐚𝐰 𝐒𝐞𝐫𝐯𝐢𝐜𝐞</strong></p>
             `
           });
-
-          // ✅ও
-
+    
+          // ✅ অ্যাডমিনের ইমেইল পাঠানো
           await sendEmail(depositData.admin, {
             subject: "📢 নতুন ডিপোজিট রিকোয়েস্ট এসেছে!",
             message: `
@@ -303,22 +302,23 @@ async function run() {
               <p><strong>ইমেইল:</strong> ${customer.email}</p>
               <p><strong>Amount:</strong> ${amount} ৳</p>
               <p><strong>TrxId:</strong> ${trxId}</p>
-              <p><strong>ডিপোজিট করেছে:</strong> ${numberName} দিয়ে ।</p>
+              <p><strong>ডিপোজিট করেছে:</strong> ${numberName} দিয়ে ।</p>
               <p><strong>Status:</strong> ${status}</p>
               <p><strong>রিকোয়েস্ট টাইম:</strong> ${new Date(createdAt).toLocaleString("bn-BD", { timeZone: "Asia/Dhaka" })}</p>
             `
           });
         }
-
+    
         // response পাঠানো
         res.send(result);
-
+    
       } catch (error) {
         console.error("Deposit Insert Error:", error);
         res.status(500).send({ message: "Deposit Failed", error });
       }
     });
-
+    
+    
     // get customer deposits data in db
     app.get('/customer-deposits/:email', async (req, res) => {
       const email = req.params.email;
@@ -419,7 +419,7 @@ async function run() {
               <p><strong>অনুরোধের তারিখ:</strong> ${new Date(createdAt).toLocaleString("bn-BD", { timeZone: "Asia/Dhaka" })}</p>
               <br>
               <p>আপনার সহযোগিতার জন্য ধন্যবাদ।</p>
-              <p><strong>Team Turf</strong></p>
+              <p><strong>𝐃𝐞𝐩𝐨𝐬𝐢𝐭 & 𝐰𝐢𝐭𝐡𝐝𝐫𝐚𝐰 𝐒𝐞𝐫𝐯𝐢𝐜𝐞</strong></p>
             `
           });
 
