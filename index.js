@@ -10,7 +10,7 @@ const port = process.env.PORT || 5000;
 
 // Middleware
 const corsOptions = {
-  origin: ['http://localhost:5173','https://first-dp-house.web.app','https://first-dp-house.firebaseapp.com'],
+  origin: ['http://localhost:5173', 'https://first-dp-house.web.app', 'https://first-dp-house.firebaseapp.com'],
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -258,67 +258,84 @@ async function run() {
     app.post('/deposits', verifyToken, async (req, res) => {
       try {
         const depositData = req.body;
-    
+
         // 🇧🇩 বাংলাদেশ সময় সেট
         const nowUTC = new Date();
-        const bdTime = new Date(nowUTC.getTime() + (6 * 60 * 60 * 1000)); // UTC থেকে ৬ ঘণ্টা যোগ করে বাংলাদেশ সময় পাওয়া যাবে।
-    
+        const bdTime = nowUTC; // শুধু UTC সময়ই রেখে দাও, frontend নিজে কনভার্ট করবে
+        // UTC থেকে ৬ ঘণ্টা যোগ করে বাংলাদেশ সময় পাওয়া যাবে।
+
+        // বাংলাদেশ সময় AM/PM ফরম্যাটে কনভার্ট করা
+        const options = {
+          timeZone: "Asia/Dhaka",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "numeric",
+          minute: "numeric",
+          second: "numeric",
+          hour12: true,  // AM/PM ফরম্যাটে সময় দেখাবে
+        };
+
+        const bdTimeFormatted = bdTime.toLocaleString("bn-BD", options);
+
         // ডিপোজিট ডেটা সেভ করার জন্য তৈরি
         const deposits = {
           ...depositData,
-          createdAt: bdTime.toISOString() // এখানে bdTime কে ISO স্ট্রিং ফরম্যাটে কনভার্ট করা হয়েছে
+          createdAt: bdTime.toISOString(), // এখানে bdTime কে ISO স্ট্রিং ফরম্যাটে কনভার্ট করা হয়েছে
+          formattedTime: bdTimeFormatted // AM/PM ফরম্যাটে সময় সংরক্ষণ
         };
-    
+
         // MongoDB তে ডাটা ইন্সার্ট
         const result = await depositCollection.insertOne(deposits);
-    
+
         // যদি সফলভাবে ডিপোজিট যুক্ত হয়
         if (result?.insertedId) {
           // ডিপোজিট থেকে প্রয়োজনীয় তথ্য বের করা
           const { customer, amount, trxId, status, createdAt, numberName } = deposits;
-    
+
           // ✅ কাস্টমারের ইমেইল পাঠানো
           await sendEmail(customer.email, {
             subject: "✅ আপনার ডিপোজিট রিকোয়েস্ট সফলভাবে গ্রহণ করা হয়েছে!",
             message: `
-              <h3>প্রিয় ${customer.name},</h3>
-              <p>আপনার <strong>${amount} ৳</strong> ডিপোজিট রিকোয়েস্ট আমরা পেয়েছি।</p>
-              <p><strong>Transaction ID:</strong> ${trxId}</p>
-              <p><strong>Status:</strong> ${status}</p>
-              <p><strong>অনুরোধের তারিখ:</strong> ${new Date(createdAt).toLocaleString("bn-BD", { timeZone: "Asia/Dhaka" })}</p>
-              <br>
-              <p>আপনার সহযোগিতার জন্য ধন্যবাদ।</p>
-              <p><strong>𝐃𝐞𝐩𝐨𝐬𝐢𝐭 & 𝐰𝐢𝐭𝐡𝐝𝐫𝐚𝐰 𝐒𝐞𝐫𝐯𝐢𝐜𝐞</strong></p>
-            `
+                    <h3>প্রিয় ${customer.name},</h3>
+                    <p>আপনার <strong>${amount} ৳</strong> ডিপোজিট রিকোয়েস্ট আমরা পেয়েছি।</p>
+                    <p><strong>Transaction ID:</strong> ${trxId}</p>
+                    <p><strong>Status:</strong> ${status}</p>
+                    <p><strong>অনুরোধের তারিখ:</strong> ${new Date(createdAt).toLocaleString("bn-BD", { timeZone: "Asia/Dhaka" })}</p>
+                    <br>
+                    <p>আপনার সহযোগিতার জন্য ধন্যবাদ।</p>
+                    <p><strong>𝐃𝐞𝐩𝐨𝐬𝐢𝐭 & 𝐰𝐢𝐭𝐡𝐝𝐫𝐚𝐰 𝐒𝐞𝐫𝐯𝐢𝐜𝐞</strong></p>
+                `
           });
-    
+
           // ✅ অ্যাডমিনের ইমেইল পাঠানো
           await sendEmail(depositData.admin, {
             subject: "📢 নতুন ডিপোজিট রিকোয়েস্ট এসেছে!",
             message: `
-              <h3>প্রিয় এডমিন,</h3>
-              <p>নতুন একজন কাস্টোমার ডিপোজিট রিকোয়েস্ট করেছেন।</p>
-              <p><strong>নাম:</strong> ${customer.name}</p>
-              <p><strong>ইমেইল:</strong> ${customer.email}</p>
-              <p><strong>Amount:</strong> ${amount} ৳</p>
-              <p><strong>TrxId:</strong> ${trxId}</p>
-              <p><strong>ডিপোজিট করেছে:</strong> ${numberName} দিয়ে ।</p>
-              <p><strong>Status:</strong> ${status}</p>
-              <p><strong>রিকোয়েস্ট টাইম:</strong> ${new Date(createdAt).toLocaleString("bn-BD", { timeZone: "Asia/Dhaka" })}</p>
-            `
+                    <h3>প্রিয় এডমিন,</h3>
+                    <p>নতুন একজন কাস্টোমার ডিপোজিট রিকোয়েস্ট করেছেন।</p>
+                    <p><strong>নাম:</strong> ${customer.name}</p>
+                    <p><strong>ইমেইল:</strong> ${customer.email}</p>
+                    <p><strong>Amount:</strong> ${amount} ৳</p>
+                    <p><strong>TrxId:</strong> ${trxId}</p>
+                    <p><strong>ডিপোজিট করেছে:</strong> ${numberName} দিয়ে ।</p>
+                    <p><strong>Status:</strong> ${status}</p>
+                    <p><strong>রিকোয়েস্ট টাইম:</strong> ${bdTimeFormatted}</p>
+                `
           });
         }
-    
+
         // response পাঠানো
         res.send(result);
-    
+
       } catch (error) {
         console.error("Deposit Insert Error:", error);
         res.status(500).send({ message: "Deposit Failed", error });
       }
     });
-    
-    
+
+
+
     // get customer deposits data in db
     app.get('/customer-deposits/:email', async (req, res) => {
       const email = req.params.email;
@@ -388,26 +405,39 @@ async function run() {
     app.post('/withdraws', verifyToken, async (req, res) => {
       try {
         const withdrawData = req.body;
-
+    
         // 🇧🇩 বাংলাদেশ সময় সেট
         const nowUTC = new Date();
-        const bdTime = new Date(nowUTC.getTime() + (6 * 60 * 60 * 1000));
-
-        // উইথড্র তথ্য তৈরি করা
+        const bdTime = nowUTC; // শুধু UTC সময়ই রেখে দাও, frontend নিজে কনভার্ট করবে
+        // UTC থেকে ৬ ঘণ্টা যোগ করে বাংলাদেশ সময় পাওয়া যাবে।
+    
+        // বাংলাদেশ সময় AM/PM ফরম্যাটে কনভার্ট করা
+        const options = {
+          timeZone: "Asia/Dhaka",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "numeric",
+          minute: "numeric",
+          second: "numeric",
+          hour12: true,  // AM/PM ফরম্যাটে সময় দেখাবে
+        };
+        const bdTimeFormatted = bdTime.toLocaleString("bn-BD", options);
+    
+        // উইথড্র ডেটা সেভ করার জন্য তৈরি
         const withdraws = {
           ...withdrawData,
-          createdAt: bdTime
+          createdAt: bdTime.toISOString(), // এখানে bdTime কে ISO স্ট্রিং ফরম্যাটে কনভার্ট করা হয়েছে
+          formattedTime: bdTimeFormatted // AM/PM ফরম্যাটে সময় সংরক্ষণ
         };
-
+    
         // MongoDB তে ডাটা সেভ
         const result = await withdrawCollection.insertOne(withdraws);
-
+    
         // যদি সফলভাবে উইথড্র ইনসার্ট হয়
         if (result?.insertedId) {
-
-          const { customer, amount, withdrawCode, status, createdAt, numberName,
-            walletNumber } = withdraws;
-
+          const { customer, amount, withdrawCode, status, createdAt, numberName, walletNumber } = withdraws;
+    
           // ✅ কাস্টমারের ইমেইল পাঠানো
           await sendEmail(customer.email, {
             subject: "✅ আপনার উইথড্র রিকোয়েস্ট সফলভাবে গ্রহণ করা হয়েছে!",
@@ -422,9 +452,7 @@ async function run() {
               <p><strong>𝐃𝐞𝐩𝐨𝐬𝐢𝐭 & 𝐰𝐢𝐭𝐡𝐝𝐫𝐚𝐰 𝐒𝐞𝐫𝐯𝐢𝐜𝐞</strong></p>
             `
           });
-
-
-
+    
           // ✅ অ্যাডমিনকে ইমেইল পাঠানো
           await sendEmail(withdrawData.admin, {
             subject: "📢 নতুন উইথড্র রিকোয়েস্ট এসেছে!",
@@ -435,23 +463,22 @@ async function run() {
               <p><strong>ইমেইল:</strong> ${customer.email}</p>
               <p><strong>Amount:</strong> ${amount} ৳</p>
               <p><strong>Withdraw Code:</strong> ${withdrawCode}</p>
-                 <p><strong>উইথড্র  রিকোয়েস্ট</strong> ${numberName}  নাম্বারে করেছে ।</p>
-
+              <p><strong>উইথড্র  রিকোয়েস্ট</strong> ${numberName}  নাম্বারে করেছে ।</p>
               <p><strong>Status:</strong> ${status}</p>
               <p><strong>রিকোয়েস্ট টাইম:</strong> ${new Date(createdAt).toLocaleString("bn-BD", { timeZone: "Asia/Dhaka" })}</p>
             `
           });
         }
-
+    
         // response পাঠানো
         res.send(result);
-
+    
       } catch (error) {
         console.error("Withdraw Insert Error:", error);
         res.status(500).send({ message: "Withdraw Failed", error });
       }
     });
-
+    
 
     // get customer deposits data in db
     app.get('/customer-withdraws/:email', verifyToken, async (req, res) => {
@@ -525,18 +552,37 @@ async function run() {
       try {
         const deposits = await depositCollection.find({}).toArray();
         const withdraws = await withdrawCollection.find({}).toArray();
-
-        // দুইটা মিক্স করে সোর্ট করলাম createdAt অনুযায়ী
-        const transactions = [...deposits, ...withdraws].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
+    
+        // সব ডেটার মধ্যে formattedTime না থাকলে সেট করো
+        const allData = [...deposits, ...withdraws].map(tx => {
+          const bdDate = new Date(tx.createdAt);
+          const formattedTime = bdDate.toLocaleString("bn-BD", {
+            timeZone: "Asia/Dhaka",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "numeric",
+            minute: "numeric",
+            second: "numeric",
+            hour12: true,
+          });
+    
+          return {
+            ...tx,
+            formattedTime // নতুনভাবে formattedTime সেট করা হলো
+          };
+        });
+    
+        // বাংলাদেশ সময় অনুসারে নতুন করে sort করা
+        const transactions = allData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
         res.send({ transactions });
       } catch (error) {
         console.error('Error fetching transactions:', error);
         res.status(500).send({ message: 'Failed to fetch transactions' });
       }
     });
-
-
+    
 
 
 
