@@ -24,7 +24,7 @@ const sendEmail = (emailAddress, emailData) => {
   const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
-    secure: false, // true for port 465, false for other ports
+    secure: false, 
     auth: {
       user: process.env.NODEMAILER_USER,
       pass: process.env.NODEMAILER_PASS,
@@ -40,11 +40,10 @@ const sendEmail = (emailAddress, emailData) => {
   })
   //  transporter.sendMail()
   const mailBody = {
-    from: process.env.NODEMAILER_USER, // sender address
-    to: emailAddress, // list of receivers
-    subject: emailData?.subject,
-    // text: emailData?.message, // plain text body
-    html: `<p>${emailData?.message}</p>`, // html body
+    from: process.env.NODEMAILER_USER, 
+    to: emailAddress, 
+    
+    html: `<p>${emailData?.message}</p>`, 
   }
   // send email
   transporter.sendMail(mailBody, (error, info) => {
@@ -261,8 +260,7 @@ async function run() {
 
         // 🇧🇩 বাংলাদেশ সময় সেট
         const nowUTC = new Date();
-        const bdTime = nowUTC; // শুধু UTC সময়ই রেখে দাও, frontend নিজে কনভার্ট করবে
-        // UTC থেকে ৬ ঘণ্টা যোগ করে বাংলাদেশ সময় পাওয়া যাবে।
+        const bdTime = nowUTC; 
 
         // বাংলাদেশ সময় AM/PM ফরম্যাটে কনভার্ট করা
         const options = {
@@ -273,16 +271,16 @@ async function run() {
           hour: "numeric",
           minute: "numeric",
           second: "numeric",
-          hour12: true,  // AM/PM ফরম্যাটে সময় দেখাবে
+          hour12: true,
         };
 
         const bdTimeFormatted = bdTime.toLocaleString("bn-BD", options);
 
-        // ডিপোজিট ডেটা সেভ করার জন্য তৈরি
+   
         const deposits = {
           ...depositData,
-          createdAt: bdTime.toISOString(), // এখানে bdTime কে ISO স্ট্রিং ফরম্যাটে কনভার্ট করা হয়েছে
-          formattedTime: bdTimeFormatted // AM/PM ফরম্যাটে সময় সংরক্ষণ
+          createdAt: bdTime.toISOString(), 
+          formattedTime: bdTimeFormatted 
         };
 
         // MongoDB তে ডাটা ইন্সার্ট
@@ -408,10 +406,7 @@ async function run() {
     
         // 🇧🇩 বাংলাদেশ সময় সেট
         const nowUTC = new Date();
-        const bdTime = nowUTC; // শুধু UTC সময়ই রেখে দাও, frontend নিজে কনভার্ট করবে
-        // UTC থেকে ৬ ঘণ্টা যোগ করে বাংলাদেশ সময় পাওয়া যাবে।
-    
-        // বাংলাদেশ সময় AM/PM ফরম্যাটে কনভার্ট করা
+        const bdTime = nowUTC; 
         const options = {
           timeZone: "Asia/Dhaka",
           year: "numeric",
@@ -420,21 +415,21 @@ async function run() {
           hour: "numeric",
           minute: "numeric",
           second: "numeric",
-          hour12: true,  // AM/PM ফরম্যাটে সময় দেখাবে
+          hour12: true,  
         };
         const bdTimeFormatted = bdTime.toLocaleString("bn-BD", options);
     
-        // উইথড্র ডেটা সেভ করার জন্য তৈরি
+
         const withdraws = {
           ...withdrawData,
-          createdAt: bdTime.toISOString(), // এখানে bdTime কে ISO স্ট্রিং ফরম্যাটে কনভার্ট করা হয়েছে
-          formattedTime: bdTimeFormatted // AM/PM ফরম্যাটে সময় সংরক্ষণ
+          createdAt: bdTime.toISOString(), 
+          formattedTime: bdTimeFormatted 
         };
     
-        // MongoDB তে ডাটা সেভ
+      
         const result = await withdrawCollection.insertOne(withdraws);
     
-        // যদি সফলভাবে উইথড্র ইনসার্ট হয়
+      
         if (result?.insertedId) {
           const { customer, amount, withdrawCode, status, createdAt, numberName, walletNumber } = withdraws;
     
